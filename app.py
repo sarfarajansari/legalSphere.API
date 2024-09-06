@@ -64,7 +64,6 @@ def chat_endpoint(chat_id:str,data:dict):
     isPOI= isQuestion(message)
     if isPOI:
         print("Answering a question")
-        print(analysis['tree'])
         answer = answerOnAnalysis(analysis['title'],json.dumps(analysis['tree']),message)
         analysis['chat'].append(['user',message,message])
         analysis['chat'].append(['assistant',answer,answer])
