@@ -1,9 +1,7 @@
 
-from openai import AzureOpenAI
-import time
 import os
 from .utils import parsellmjson
-
+from .chatWithAiSeach import chatwithAISearch
 endpoint =  os.getenv("AZURE_ENDPOINT")
 search_endpoint = os.getenv("AZURE_SEARCH_ENDPOINT")
 search_index = os.getenv("AZURE_SEARCH_INDEX")
@@ -11,45 +9,14 @@ search_key = os.getenv("AZURE_SEARCH_KEY")
 
 
 def generate_legal_data(casedata,attemp=0):
-  deployment = "gpt-4o"
-  client = AzureOpenAI(
-      azure_endpoint=endpoint,
-      api_key='50f8303273e34afd88a2846303333be1',
-      api_version="2024-05-01-preview",
-  )
 
   input = casedata['case']
 
-  completion = None
-  try:
-
-    completion = client.chat.completions.create(
-        model=deployment,
-        messages= [
-        {
-          "role": "user",
-          "content": f"""**Case Issue**
+  user_message = f"""Case Issue:
       {input}
   """
-        }],
-        max_tokens=3000,
-        temperature=0.7,
-        top_p=0.95,
-        frequency_penalty=0,
-        presence_penalty=0,
-        stop=None,
-        stream=False,
-        extra_body={
-          "data_sources": [{
-              "type": "azure_search",
-              "parameters": {
-                "endpoint": f"{search_endpoint}",
-                "index_name": search_index,
-                "semantic_configuration": "default",
-                "query_type": "vector_semantic_hybrid",
-                "fields_mapping": {},
-                "in_scope": True,
-                "role_information": """You are a legal assistant specialized in commercial cases in india, you already have data regarding past judgements. You are asked to find out the following when given a new case by carefully analysing the case:
+
+  system_message =  """You are a legal assistant specialized in commercial cases in india, you already have data regarding past judgements. You are asked to find out the following when given a new case by carefully analysing the case:
 
     Follow the JSON structure to understand the output requirement
     keep arrays empty when you don't have enough data
@@ -87,43 +54,16 @@ def generate_legal_data(casedata,attemp=0):
   }
 
 
-    """,
-                "filter": None,
-                "strictness": 3,
-                "top_n_documents": 6,
-                "authentication": {
-                  "type": "api_key",
-                  "key": f"{search_key}"
-                },
-                "embedding_dependency": {
-                  "type": "deployment_name",
-                  "deployment_name": "customusage"
-                }
-              }
-            }]
-        }
-    )
-
-  except Exception as e:
-    print(e)
-    if attemp < 5:
-      time.sleep(8)
-      print("retrying")
-      return generate_legal_data(casedata,attemp+1)
-
-    raise e
+    """
+  content = chatwithAISearch(system_message,user_message)
 
 
 
-  additional_data =  parsellmjson(completion.choices[0].message.content)
+
+  additional_data =  parsellmjson(content)
   print("Generated additional data")
 
   for key in additional_data:
     casedata[key] = additional_data[key]
-
-
-
-
-
 
   return casedata
